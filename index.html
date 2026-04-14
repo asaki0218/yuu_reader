@@ -3,219 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - 完美微調版</title>
+    <title>YUU極簡閱讀器 - 最終完美版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
     <style>
-        :root { --bg-color: #ffffff; --text-color: #333333; --glass-bg: rgba(255, 255, 255, 0.7); --border-color: rgba(0, 0, 0, 0.1); }
-        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; display: flex; flex-direction: column; height: 100vh; transition: background 0.3s, color 0.3s; overflow: hidden; }
+        :root { 
+            --bg-color: #ffffff; --text-color: #333333; --glass-bg: rgba(255, 255, 255, 0.8); 
+            --border-color: rgba(0, 0, 0, 0.1); --accent: #007aff; 
+        }
+        body { 
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); 
+            font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; 
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s;
+        }
         
-        /* 頂部導航 */
-        #header-fixed { position: fixed; top: 0; left: 0; width: 100%; height: 50px; background: var(--glass-bg); border-bottom: 1px solid var(--border-color); z-index: 3000; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; box-sizing: border-box; }
+        /* 頂部導航重構：兩行佈局 */
+        #top-container { 
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 3000; 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
+            border-bottom: 1px solid var(--border-color); background: var(--glass-bg);
+            padding-bottom: 8px;
+        }
+        #header-fixed { height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
+        #book-title-row { width: 100%; text-align: center; font-size: 11px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; box-sizing: border-box; min-height: 14px; }
+        .top-btn { background: transparent; border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-size: 13px; color: inherit; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+        /* 書架 */
+        #shelf-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 6000; overflow-y: auto; padding: 85px 20px 40px; box-sizing: border-box; display: block; }
+        .shelf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .shelf-item { cursor: pointer; position: relative; text-align: center; }
+        .cover-wrapper { width: 100%; aspect-ratio: 3/4; background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid var(--border-color); }
+        .cover-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        .shelf-item h4 { margin: 10px 0 0; font-size: 12px; font-weight: normal; max-height: 2.8em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; opacity: 0.9; }
+        .delete-btn { position: absolute; top: -5px; right: -5px; background: #ff3b30; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; z-index: 10; cursor: pointer; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        /* 目錄導覽：70% 寬度 */
+        #toc { display: none; position: fixed; top: 0; left: 0; width: 70%; height: 100%; background: var(--bg-color); z-index: 5000; overflow-y: auto; box-shadow: 15px 0 40px rgba(0,0,0,0.15); }
+        .toc-header { padding: 18px 20px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; background: var(--bg-color); z-index: 10; }
+        .toc-item { padding: 18px 20px; border-bottom: 1px solid var(--border-color); font-size: 12px; cursor: pointer; transition: background 0.2s; }
+        .toc-item.active { color: var(--accent); font-weight: bold; background: rgba(0,122,255,0.08); }
+
+        /* 閱讀區 */
+        #main-scroll-area { flex: 1; margin-top: 72px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        #viewer { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 18px; box-sizing: border-box; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 4000; }
         
-        #debug-log { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 10px 20px; background: rgba(0,0,0,0.7); color: #fff; font-size: 13px; border-radius: 20px; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
-        #debug-log.show { opacity: 1; }
-        
-        .top-btn { background: transparent; border: 1px solid var(--border-color); padding: 5px 12px; border-radius: 6px; font-size: 13px; color: inherit; cursor: pointer; }
+        /* 底部按鈕 */
+        .nav-controls { display: flex; justify-content: center; gap: 10px; padding: 40px 15px 120px; max-width: 500px; margin: 0 auto; }
+        .btn-base { border: 1px solid var(--border-color); border-radius: 12px; font-size: 14px; padding: 15px 5px; cursor: pointer; color: inherit; background: var(--glass-bg); flex: 1; }
 
         /* 設定面板 */
-        #settings-panel { display: none; position: fixed; top: 55px; right: 15px; width: 260px; background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 4500; padding: 18px; color: var(--text-color); }
-        .setting-section { margin-bottom: 18px; }
-        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .setting-label { font-size: 12px; font-weight: bold; opacity: 0.8; }
-        .reset-icon { cursor: pointer; font-size: 16px; opacity: 0.4; padding: 2px 8px; }
-        .theme-options { display: flex; gap: 8px; flex-wrap: wrap; }
-        .theme-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.1); cursor: pointer; }
-        .ctrl-group { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 10px; }
-        .ctrl-btn { background: transparent; border: none; width: 40px; height: 35px; font-size: 18px; cursor: pointer; color: inherit; }
-        .ctrl-val { font-size: 13px; font-weight: 600; min-width: 45px; text-align: center; }
+        #settings-panel { display: none; position: fixed; top: 60px; right: 15px; width: 280px; background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px; z-index: 4500; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .setting-group { margin-bottom: 20px; }
+        .setting-label { font-size: 12px; font-weight: bold; margin-bottom: 10px; display: block; opacity: 0.6; }
+        .color-dots { display: flex; gap: 10px; }
+        .dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; }
+        .dot:active { transform: scale(0.9); }
+        .control-row { display: flex; align-items: center; background: rgba(120,120,120,0.1); border-radius: 10px; overflow: hidden; flex: 1; }
+        .ctrl-btn { background: transparent; border: none; font-size: 20px; width: 45px; height: 40px; cursor: pointer; color: inherit; }
+        .val-display { flex: 1; text-align: center; font-size: 15px; font-weight: 500; }
+        .reset-icon-btn { background: transparent; border: 1px solid var(--border-color); border-radius: 8px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; color: var(--accent); display: flex; align-items: center; justify-content: center; }
 
-        /* 閱讀區域 */
-        #main-scroll-area { flex: 1; margin-top: 50px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        #viewer { width: 100%; max-width: 800px; margin: 0 auto; padding: 5px 15px; box-sizing: border-box; }
-        
-        /* 導航按鈕 */
-        .nav-controls { display: flex; justify-content: center; gap: 8px; padding: 30px 15px 120px; max-width: 500px; margin: 0 auto; }
-        .btn-base { border: 1px solid var(--border-color); border-radius: 12px; font-size: 13px; padding: 14px 5px; cursor: pointer; color: inherit; background: var(--glass-bg); backdrop-filter: blur(10px); }
-
-        /* 目錄介面調整 */
-        #toc { 
-            display: none; position: fixed; top: 0; left: 0; 
-            width: 70%; /* 修改：佔比改為約一半 */
-            height: 100%; background: var(--bg-color); z-index: 5000; overflow-y: auto; 
-            box-shadow: 10px 0 30px rgba(0,0,0,0.1);
-        }
-        .toc-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; background: var(--bg-color); z-index: 10; }
-        .toc-item { padding: 16px 20px; border-bottom: 1px solid var(--border-color); font-size: 12px; cursor: pointer; }
-        
-        /* 檔名顯示調整 */
-        .book-filename { 
-            font-size: 12px; opacity: 0.5; display: block; margin-top: 6px; 
-            word-break: break-all; /* 修改：強制長單字換行 */
-            white-space: normal;  /* 修改：允許自動換行 */
-            line-height: 1.4;
-        }
-
-        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 4000; }
-        #drop-zone { height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        /* Toast */
+        #toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 12px 24px; background: rgba(0,0,0,0.85); color: #fff; font-size: 14px; border-radius: 30px; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        #toast.show { opacity: 1; }
     </style>
 </head>
 <body>
-    <div id="debug-log"></div>
-    <div id="header-fixed"><button class="top-btn" onclick="openTOC()">📖 目錄</button><button class="top-btn" onclick="toggleSettings()">⚙️ 設定</button></div>
-    
-    <div id="settings-panel">
-        <div class="setting-section">
-            <div class="label-row"><div class="setting-label">主題配色</div></div>
-            <div class="theme-options">
-                <div class="theme-dot" style="background: #ffffff;" onclick="changeTheme('white')"></div>
-                <div class="theme-dot" style="background: #f4ecd8;" onclick="changeTheme('sepia')"></div>
-                <div class="theme-dot" style="background: #e0e0e0;" onclick="changeTheme('gray')"></div>
-                <div class="theme-dot" style="background: #1a2f23;" onclick="changeTheme('green')"></div>
-                <div class="theme-dot" style="background: #1c1c1e;" onclick="changeTheme('dark')"></div>
+
+    <div id="toast"></div>
+
+    <div id="top-container">
+        <div id="header-fixed">
+            <button class="top-btn" onclick="openTOC()">📖 目錄</button>
+            <div style="display:flex; gap:10px;">
+                <button class="top-btn" onclick="showShelf()">📚 書架</button>
+                <button class="top-btn" onclick="toggleSettings()">⚙️</button>
             </div>
         </div>
-        <div class="setting-section"><div class="label-row"><div class="setting-label">文字大小</div><span class="reset-icon" onclick="resetConfig('fs')">↺</span></div><div class="ctrl-group"><button class="ctrl-btn" onclick="changeFontSize(-1)">−</button><span class="ctrl-val" id="val-font">19px</span><button class="ctrl-btn" onclick="changeFontSize(1)">+</button></div></div>
-        <div class="setting-section"><div class="label-row"><div class="setting-label">行高</div><span class="reset-icon" onclick="resetConfig('lh')">↺</span></div><div class="ctrl-group"><button class="ctrl-btn" onclick="changeLineHeight(-0.1)">−</button><span class="ctrl-val" id="val-line">1.8</span><button class="ctrl-btn" onclick="changeLineHeight(0.1)">+</button></div></div>
-        <div class="setting-section"><div class="label-row"><div class="setting-label">段落間距</div><span class="reset-icon" onclick="resetConfig('ps')">↺</span></div><div class="ctrl-group"><button class="ctrl-btn" onclick="changeParaSpacing(-2)">−</button><span class="ctrl-val" id="val-para">15px</span><button class="ctrl-btn" onclick="changeParaSpacing(2)">+</button></div></div>
+        <div id="book-title-row"></div>
     </div>
-    
+
+    <div id="shelf-overlay">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <h2 style="margin:0; font-size: 24px; font-weight: 800;">我的書架</h2>
+            <button class="top-btn" style="background:var(--accent); color:white; border:none; padding: 8px 16px;" onclick="document.getElementById('file-input').click()">+ 新增書籍</button>
+        </div>
+        <input type="file" id="file-input" accept=".epub" style="display:none">
+        <div id="shelf-list" class="shelf-grid"></div>
+    </div>
+
     <div id="main-scroll-area">
         <div id="overlay" onclick="closeAll()"></div>
         <div id="toc">
             <div class="toc-header">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: bold; font-size: 15px;">書籍目錄</span>
-                    <span onclick="closeAll()" style="color: #007aff; font-size: 14px; font-weight: bold; cursor: pointer;">關閉</span>
+                    <span style="font-weight: bold; font-size: 15px;">目錄導覽</span>
+                    <span onclick="closeAll()" style="color: var(--accent); font-size: 14px; font-weight: bold; cursor: pointer;">關閉</span>
                 </div>
-                <span id="display-filename" class="book-filename">尚未選取檔案</span>
             </div>
             <div id="toc-list"></div>
         </div>
 
-        <div id="drop-zone"><h3>極簡閱讀器</h3><input type="file" id="file-input" accept=".epub"></div>
         <div id="viewer"></div>
-        
         <div id="nav-area" class="nav-controls" style="display:none;">
-            <button class="btn-base" style="flex:1" onclick="if(rendition) rendition.prev()">上一頁</button>
-            <button class="btn-base" style="flex:1" onclick="if(rendition) rendition.display(0)">封面</button>
-            <button class="btn-base" style="flex:1.2; font-weight:bold" onclick="if(rendition) rendition.next()">下一頁</button>
+            <button class="btn-base" onclick="rendition.prev()">上一頁</button>
+            <button class="btn-base" onclick="rendition.display(0)">首頁</button>
+            <button class="btn-base" style="font-weight:bold" onclick="rendition.next()">下一頁</button>
         </div>
     </div>
 
-    <script>
-        let book, rendition, fileName = "";
-        const DEFAULTS = { fs: 19, lh: 1.8, ps: 15, tm: 'white' };
-        let config = { 
-            fontSize: parseInt(localStorage.getItem("r_fs")) || DEFAULTS.fs, 
-            lineHeight: parseFloat(localStorage.getItem("r_lh")) || DEFAULTS.lh, 
-            paraSpacing: parseInt(localStorage.getItem("r_ps")) || DEFAULTS.ps, 
-            theme: localStorage.getItem("r_tm") || DEFAULTS.tm 
-        };
+    <div id="settings-panel">
+        <div class="setting-group">
+            <span class="setting-label">背景配色</span>
+            <div class="color-dots">
+                <div class="dot" style="background:#ffffff; border:1px solid #ddd" onclick="setTheme('#ffffff','#333333')"></div>
+                <div class="dot" style="background:#f4ecd8" onclick="setTheme('#f4ecd8','#5b4636')"></div>
+                <div class="dot" style="background:#f0f0f0" onclick="setTheme('#f0f0f0','#333333')"></div>
+                <div class="dot" style="background:#2d3e30" onclick="setTheme('#2d3e30','#ffffff')"></div>
+                <div class="dot" style="background:#1a1a1a" onclick="setTheme('#1a1a1a','#ffffff')"></div>
+            </div>
+        </div>
+        
+        <div class="setting-group">
+            <span class="setting-label">文字大小</span>
+            <div style="display:flex; gap:10px;">
+                <div class="control-row">
+                    <button class="ctrl-btn" onclick="changeStyle('fontSize', -1)">-</button>
+                    <span id="val-fontSize" class="val-display">19</span>
+                    <button class="ctrl-btn" onclick="changeStyle('fontSize', 1)">+</button>
+                </div>
+                <button class="reset-icon-btn" onclick="resetSingleStyle('fontSize')">↺</button>
+            </div>
+        </div>
 
-        const setMsg = (m) => {
-            const el = document.getElementById('debug-log');
-            el.innerText = m; el.classList.add('show');
-            setTimeout(() => { el.classList.remove('show'); }, 2000);
-        };
+        <div class="setting-group">
+            <span class="setting-label">閱讀行距</span>
+            <div style="display:flex; gap:10px;">
+                <div class="control-row">
+                    <button class="ctrl-btn" onclick="changeStyle('lineHeight', -0.1)">-</button>
+                    <span id="val-lineHeight" class="val-display">1.6</span>
+                    <button class="ctrl-btn" onclick="changeStyle('lineHeight', 0.1)">+</button>
+                </div>
+                <button class="reset-icon-btn" onclick="resetSingleStyle('lineHeight')">↺</button>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="top-btn" style="flex:1; justify-content:center" onclick="exportBackup()">導出數據</button>
+            <button class="top-btn" style="flex:1; justify-content:center" onclick="document.getElementById('import-file').click()">導入數據</button>
+        </div>
+        <input type="file" id="import-file" style="display:none" accept=".json" onchange="importBackup(this)">
+    </div>
+
+    <script>
+        const db = new Dexie("YuuReaderDB_Final");
+        db.version(1).stores({ books: "id, name, data, cover, added" });
+
+        let book, rendition, fileName = "";
+        let currentStyles = { fontSize: 19, lineHeight: 1.6 };
+
+        async function loadShelf() {
+            const books = await db.books.orderBy('added').reverse().toArray();
+            const list = document.getElementById('shelf-list');
+            list.innerHTML = "";
+            books.forEach(b => {
+                const item = document.createElement('div');
+                item.className = "shelf-item";
+                item.innerHTML = `
+                    <button class="delete-btn" onclick="deleteBook(event, '${b.id}')">✕</button>
+                    <div class="cover-wrapper" id="cover-${b.id}">${b.cover ? `<img src="${URL.createObjectURL(b.cover)}">` : `<div style="color:white; font-weight:bold; font-size:30px">${b.name.charAt(0)}</div>`}</div>
+                    <h4>${b.name}</h4>
+                `;
+                item.onclick = () => openBook(b.data, b.name);
+                list.appendChild(item);
+                if (!b.cover) fetchCoverInBackground(b);
+            });
+        }
+
+        async function fetchCoverInBackground(bookData) {
+            try {
+                const tempBook = ePub(bookData.data);
+                const coverUrl = await tempBook.coverUrl();
+                if (coverUrl) {
+                    const res = await fetch(coverUrl);
+                    const blob = await res.blob();
+                    await db.books.update(bookData.id, { cover: blob });
+                    const container = document.getElementById(`cover-${bookData.id}`);
+                    if (container) container.innerHTML = `<img src="${URL.createObjectURL(blob)}">`;
+                }
+            } catch (e) {}
+        }
 
         document.getElementById('file-input').onchange = async function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            fileName = file.name;
-            document.getElementById('display-filename').innerText = fileName;
-            setMsg("加載中...");
-
-            if (book) book.destroy();
-            book = ePub();
-            
-            try {
-                const buffer = await file.arrayBuffer();
-                await book.open(buffer);
-                rendition = book.renderTo("viewer", { width: "100%", height: "auto", flow: "scrolled" });
-                
-                document.getElementById('drop-zone').style.display = 'none';
-                document.getElementById('nav-area').style.display = 'flex';
-                
-                const savedPos = localStorage.getItem("pos_" + fileName);
-                await rendition.display(savedPos || 0);
-                
-                applyAllStyles();
-
-                book.loaded.navigation.then(nav => {
-                    const list = document.getElementById('toc-list');
-                    list.innerHTML = "";
-                    nav.forEach(ch => {
-                        const d = document.createElement('div');
-                        d.className = "toc-item"; d.innerText = ch.label.trim();
-                        d.onclick = () => { rendition.display(ch.href); closeAll(); };
-                        list.appendChild(d);
-                    });
-                });
-
-                rendition.on("relocated", loc => { if (loc && loc.start) localStorage.setItem("pos_" + fileName, loc.start.cfi); });
-                rendition.on("rendered", () => { document.getElementById('main-scroll-area').scrollTo(0, 0); });
-            } catch (err) { setMsg("載入失敗"); }
+            const exists = await db.books.where("name").equals(file.name).count();
+            if (exists > 0) { showToast("這本書已在書架囉"); return; }
+            showToast("正在翻開書頁...");
+            const buffer = await file.arrayBuffer();
+            await db.books.add({ id: Date.now().toString(), name: file.name, data: buffer, added: Date.now() });
+            showToast("已收入書架");
+            loadShelf();
+            openBook(buffer, file.name);
         };
 
-        function applyEbookStyles() {
-            if (!rendition) return;
-            const color = getComputedStyle(document.documentElement).getPropertyValue('--text-color');
-            rendition.getContents().forEach(c => {
-                c.addStylesheetRules({
-                    "body": { "color": color + " !important", "font-size": config.fontSize + "px !important", "line-height": config.lineHeight + " !important", "background": "transparent !important" },
-                    "p": { "margin-bottom": config.paraSpacing + "px !important", "margin-top": "0 !important" }
+        async function openBook(data, name) {
+            fileName = name;
+            document.getElementById('shelf-overlay').style.display = 'none';
+            document.getElementById('book-title-row').innerText = name;
+            if (book) book.destroy();
+            
+            document.getElementById('toc-list').innerHTML = "";
+            book = ePub(data);
+            rendition = book.renderTo("viewer", { width: "100%", height: "auto", flow: "scrolled" });
+            
+            const savedPos = localStorage.getItem("pos_" + fileName);
+            await rendition.display(savedPos || 0);
+            applyCurrentStyles();
+            document.getElementById('nav-area').style.display = 'flex';
+            
+            book.loaded.navigation.then(nav => {
+                const list = document.getElementById('toc-list');
+                nav.forEach(ch => {
+                    const d = document.createElement('div'); d.className = "toc-item"; d.innerText = ch.label.trim();
+                    d.id = "toc-" + ch.href;
+                    d.onclick = () => { rendition.display(ch.href); closeAll(); };
+                    list.appendChild(d);
                 });
+                updateTOCSelection(); 
+            });
+
+            rendition.on("relocated", loc => {
+                if (loc && loc.start) {
+                    localStorage.setItem("pos_" + fileName, loc.start.cfi);
+                    updateTOCSelection(loc.start.href);
+                }
             });
         }
 
-        function applyAllStyles() {
-            updateUITheme();
-            document.getElementById('val-font').innerText = config.fontSize + "px";
-            document.getElementById('val-line').innerText = config.lineHeight;
-            document.getElementById('val-para').innerText = config.paraSpacing + "px";
-            if (rendition) {
-                applyEbookStyles();
-                rendition.hooks.content.register(contents => { applyEbookStyles(); return Promise.resolve(); });
+        function updateTOCSelection(href) {
+            document.querySelectorAll('.toc-item').forEach(el => el.classList.remove('active'));
+            if(!href && book) {
+                const current = book.navigation.get(rendition.location.start.href);
+                if(current) href = current.href;
             }
+            const target = document.getElementById("toc-" + href);
+            if (target) target.classList.add('active');
         }
 
-        function updateConfig(key, val, elId, unit) {
-            localStorage.setItem(key, val);
-            document.getElementById(elId).innerText = val + unit;
-            applyEbookStyles();
+        function applyCurrentStyles() {
+            if (!rendition) return;
+            rendition.themes.fontSize(currentStyles.fontSize + "px");
+            rendition.themes.default({ "p": { "line-height": currentStyles.lineHeight + " !important", "margin-bottom": "1.5em !important" } });
+            document.getElementById('val-fontSize').innerText = currentStyles.fontSize;
+            document.getElementById('val-lineHeight').innerText = currentStyles.lineHeight.toFixed(1);
         }
 
-        function changeFontSize(d) { config.fontSize = Math.max(12, Math.min(40, config.fontSize + d)); updateConfig("r_fs", config.fontSize, "val-font", "px"); }
-        function changeLineHeight(d) { config.lineHeight = Math.round((Math.max(1.2, Math.min(3.0, config.lineHeight + d))) * 10) / 10; updateConfig("r_lh", config.lineHeight, "val-line", ""); }
-        function changeParaSpacing(d) { config.paraSpacing = Math.max(15, Math.min(45, config.paraSpacing + d)); updateConfig("r_ps", config.paraSpacing, "val-para", "px"); }
-        
-        function resetConfig(type) {
-            if (type === 'fs') { config.fontSize = DEFAULTS.fs; updateConfig("r_fs", config.fontSize, "val-font", "px"); }
-            if (type === 'lh') { config.lineHeight = DEFAULTS.lh; updateConfig("r_lh", config.lineHeight, "val-line", ""); }
-            if (type === 'ps') { config.paraSpacing = DEFAULTS.ps; updateConfig("r_ps", config.paraSpacing, "val-para", "px"); }
+        function changeStyle(type, delta) {
+            if (type === 'fontSize') currentStyles.fontSize = Math.max(12, Math.min(32, currentStyles.fontSize + delta));
+            if (type === 'lineHeight') currentStyles.lineHeight = Math.max(1.2, Math.min(2.5, currentStyles.lineHeight + delta));
+            applyCurrentStyles();
         }
 
-        function changeTheme(type) { config.theme = type; localStorage.setItem("r_tm", type); updateUITheme(); applyEbookStyles(); closeAll(); }
-        
-        function updateUITheme() {
-            const t = config.theme;
-            if (t === 'dark') setThemeVars('#1c1c1e', '#cccccc', 'rgba(44, 44, 46, 0.8)', 'rgba(255,255,255,0.1)');
-            else if (t === 'sepia') setThemeVars('#f4ecd8', '#5b4636', 'rgba(244, 236, 216, 0.8)', 'rgba(0,0,0,0.05)');
-            else if (t === 'gray') setThemeVars('#e0e0e0', '#222222', 'rgba(224, 224, 224, 0.8)', 'rgba(0,0,0,0.1)');
-            else if (t === 'green') setThemeVars('#1a2f23', '#e0eade', 'rgba(26, 47, 35, 0.8)', 'rgba(255,255,255,0.1)');
-            else setThemeVars('#ffffff', '#333333', 'rgba(255,255,255,0.7)', 'rgba(0,0,0,0.1)');
+        function resetSingleStyle(type) {
+            if (type === 'fontSize') currentStyles.fontSize = 19;
+            if (type === 'lineHeight') currentStyles.lineHeight = 1.6;
+            applyCurrentStyles();
         }
 
-        function setThemeVars(bg, text, glass, border) {
-            const root = document.documentElement;
-            root.style.setProperty('--bg-color', bg); root.style.setProperty('--text-color', text);
-            root.style.setProperty('--glass-bg', glass); root.style.setProperty('--border-color', border);
+        function setTheme(bg, text) {
+    // 1. 設定全域變數與 CSS 變數
+    document.body.style.backgroundColor = bg;
+    document.body.style.color = text;
+    
+    // 2. 同步更新所有層級（書架、目錄、頂欄）
+    const overlays = ['shelf-overlay', 'toc', 'top-container'];
+    overlays.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.backgroundColor = bg;
+            el.style.color = text;
+        }
+    });
+
+    // 3. 處理磨砂玻璃與邊框的適配
+    const isDark = (bg === '#1a1a1a' || bg === '#2d3e30');
+    document.documentElement.style.setProperty('--glass-bg', isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)');
+    document.documentElement.style.setProperty('--border-color', isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)');
+
+    // 4. 【核心關鍵】更新閱讀器內部的文字顏色
+    if (rendition) {
+        rendition.themes.register("custom", {
+            body: { 
+                "background-color": bg + " !important",
+                "color": text + " !important"
+            },
+            p: { 
+                "color": text + " !important",
+                "line-height": currentStyles.lineHeight + " !important"
+            }
+        });
+        rendition.themes.select("custom");
+    }
+    
+    closeAll();
+}
+
+        function showToast(m) {
+            const el = document.getElementById('toast');
+            el.innerText = m; el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2000);
         }
 
-        function toggleSettings() { const p = document.getElementById('settings-panel'); const isShow = p.style.display === 'block'; closeAll(); if (!isShow) { p.style.display = 'block'; document.getElementById('overlay').style.display = 'block'; } }
-        function openTOC() { closeAll(); document.getElementById('toc').style.display = 'block'; document.getElementById('overlay').style.display = 'block'; }
-        function closeAll() { document.getElementById('toc').style.display = 'none'; document.getElementById('settings-panel').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
+        function openTOC() { 
+            document.getElementById('toc').style.display = 'block'; 
+            document.getElementById('overlay').style.display = 'block'; 
+            setTimeout(() => {
+                const active = document.querySelector('.toc-item.active');
+                if (active) active.scrollIntoView({ block: 'center' });
+            }, 100);
+        }
+
+        function showShelf() { document.getElementById('shelf-overlay').style.display = 'block'; }
+        function toggleSettings() { const p = document.getElementById('settings-panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+        function closeAll() { document.getElementById('toc').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; document.getElementById('settings-panel').style.display = 'none'; }
+        async function deleteBook(e, id) { e.stopPropagation(); if(confirm("確定從書架移除？")) { await db.books.delete(id); loadShelf(); } }
+
+        async function exportBackup() {
+            const allBooks = await db.books.toArray();
+            const blob = new Blob([JSON.stringify(allBooks)], {type: "application/json"});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `yuu_library_backup.json`; a.click();
+            showToast("回憶已打包");
+        }
+
+        async function importBackup(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = JSON.parse(e.target.result);
+                for(let b of data) { await db.books.put(b); }
+                showToast("數據已導入"); loadShelf();
+            };
+            reader.readAsText(file);
+        }
+
+        loadShelf();
     </script>
 </body>
 </html>
