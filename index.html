@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - 完美補全版</title>
+    <title>極簡閱讀器 - 完美補全終極修正版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -21,8 +21,6 @@
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
-        
-        /* 頂部導航 */
         #top-container { 
             position: fixed; top: 0; left: 0; width: 100%; z-index: 3000; 
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
@@ -34,7 +32,6 @@
         #book-title-row { width: 100%; text-align: center; font-size: 11px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; box-sizing: border-box; color: var(--header-text); }
         .top-btn { background: transparent; border: 1px solid var(--border-color); padding: 5px 10px; border-radius: 8px; font-size: 13px; color: var(--header-text); cursor: pointer; }
 
-        /* 書架 */
         #shelf-overlay { position: fixed; inset: 0; background: var(--bg-color); z-index: 6000; overflow-y: auto; padding: 80px 20px 40px; box-sizing: border-box; transition: background-color 0.3s; }
         .shelf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
         .shelf-item { cursor: pointer; position: relative; text-align: center; }
@@ -43,11 +40,9 @@
         .cover-wrapper img { width: 100%; height: 100%; object-fit: cover; }
         .delete-btn { position: absolute; top: -5px; right: -5px; background: #ff3b30; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; z-index: 30; cursor: pointer; }
 
-        /* 閱讀區與底部按鈕 */
         #main-scroll-area { flex: 1; margin-top: 68px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         #viewer { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 15px; box-sizing: border-box; }
 
-        /* 補回來的底部導航按鈕 */
         .nav-controls { 
             display: none; justify-content: center; gap: 10px; 
             padding: 40px 15px 120px; max-width: 500px; margin: 0 auto; 
@@ -60,9 +55,8 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        /* 設定面板 */
         #settings-panel { 
-            display: none; position: fixed; top: 60px; right: 10px; width: 260px; 
+            display: none; position: fixed; top: 60px; right: 10px; width: 210px; 
             background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); 
             border: 1px solid var(--border-color); border-radius: 22px; padding: 22px; 
             z-index: 4500; box-shadow: 0 15px 45px rgba(0,0,0,0.2); 
@@ -75,16 +69,16 @@
         .ctrl-btn { background: transparent; border: none; font-size: 20px; width: 50px; height: 50px; cursor: pointer; color: inherit; }
         .ctrl-val { font-size: 15px; }
 
-        /* 目錄與 Toast */
         #toc-panel { display: none; position: fixed; top: 0; left: 0; width: 300px; height: 100%; background: var(--bg-color); z-index: 5000; overflow-y: auto; box-shadow: 10px 0 30px rgba(0,0,0,0.1); border-right: 1px solid var(--border-color); }
         .toc-header { position: sticky; top: 0; background: var(--bg-color); padding: 20px; font-weight: bold; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
         .toc-item { padding: 15px 20px; border-bottom: 1px solid var(--border-color); font-size: 14px; cursor: pointer; opacity: 0.7; }
         .toc-item.active { background: rgba(0, 122, 255, 0.1); color: var(--accent); font-weight: bold; opacity: 1; border-left: 4px solid var(--accent); }
 
-        #toast-container { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none; }
-        .toast { background: rgba(0, 0, 0, 0.75); color: white; padding: 12px 24px; border-radius: 25px; font-size: 13px; margin-top: 10px; backdrop-filter: blur(10px); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards; }
-        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes toastOut { to { opacity: 0; transform: translateY(-20px); } }
+        /* 2. Toast 修正：置中且不換行 */
+        #toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; pointer-events: none; }
+        .toast { background: rgba(0, 0, 0, 0.75); color: white; padding: 12px 24px; border-radius: 25px; font-size: 13px; white-space: nowrap; backdrop-filter: blur(10px); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes toastOut { to { opacity: 0; transform: scale(0.8); } }
 
         #global-mask { display: none; position: fixed; inset: 0; z-index: 3500; background: transparent; }
     </style>
@@ -159,19 +153,21 @@
     </div>
 
     <script>
-        const db = new Dexie("YuuReader_Final_V7");
+        const db = new Dexie("YuuReader_Android_Final");
         db.version(1).stores({ books: "id, name, data, cover, lastRead" });
 
         let book, rendition, currentId;
+        // 3. 基準設定
         const defaults = { bg: '#ffffff', text: '#333333', fontSize: 19, lineHeight: 1.6 };
         let prefs = JSON.parse(localStorage.getItem('yuu_v7_prefs')) || {...defaults};
 
         function showToast(msg) {
             const container = document.getElementById('toast-container');
+            container.innerHTML = ""; // 確保不堆疊
             const el = document.createElement('div');
             el.className = 'toast'; el.innerText = msg;
             container.appendChild(el);
-            setTimeout(() => el.remove(), 2500);
+            setTimeout(() => { if(el) el.remove(); }, 2500);
         }
 
         async function loadShelf() {
@@ -192,32 +188,49 @@
             const file = e.target.files[0]; if (!file) return;
             const exists = await db.books.where("name").equals(file.name).first();
             if (exists) { showToast("這本書已經在書架上等你了喔"); return; }
+            
+            showToast("正在處理檔案...");
             const reader = new FileReader();
             reader.onload = async (ev) => {
-                const buffer = ev.target.result; let cover = null;
-                try { const temp = ePub(buffer); const url = await temp.coverUrl(); if (url) cover = await fetch(url).then(r => r.blob()); } catch(e) {}
-                await db.books.add({ id: Date.now().toString(), name: file.name, data: buffer, cover, lastRead: 0 });
-                showToast("歡迎新書上架 📖"); loadShelf();
+                const buffer = ev.target.result; 
+                let coverBlob = null;
+                try { 
+                    const temp = ePub(buffer); 
+                    const url = await temp.coverUrl(); 
+                    if (url) coverBlob = await fetch(url).then(r => r.blob()); 
+                } catch(err) {}
+                await db.books.add({ id: Date.now().toString(), name: file.name, data: buffer, cover: coverBlob, lastRead: 0 });
+                showToast("歡迎新書上架 📖"); 
+                setTimeout(loadShelf, 300);
             };
             reader.readAsArrayBuffer(file);
         };
 
         async function openBook(data, name, id, isFirstOpen) {
             currentId = id;
+            // 1. 解決新書目錄問題：開啟新書前清空目錄列表
+            document.getElementById('toc-list').innerHTML = "";
+            
             await db.books.update(id, { lastRead: Date.now() });
             document.getElementById('shelf-overlay').style.display = 'none';
             document.getElementById('book-title-row').innerText = name;
             if (book) book.destroy();
+            
             book = ePub(data);
             rendition = book.renderTo("viewer", { width: "100%", height: "auto", flow: "scrolled" });
+            
             const savedPos = localStorage.getItem("pos_" + id);
             await rendition.display(savedPos || 0);
+            
             if (isFirstOpen && savedPos) showToast("為你翻回上次停下的地方");
             applyAllStyles();
-            document.getElementById('nav-area').style.display = 'flex'; // 顯示底部按鈕
+            document.getElementById('nav-area').style.display = 'flex';
+            
             rendition.on("relocated", loc => { if(loc.start) localStorage.setItem("pos_" + currentId, loc.start.cfi); });
+            
             book.loaded.navigation.then(nav => {
-                const list = document.getElementById('toc-list'); list.innerHTML = "";
+                const list = document.getElementById('toc-list');
+                list.innerHTML = ""; // 雙重確保清空
                 nav.forEach(chapter => {
                     const div = document.createElement("div");
                     div.className = "toc-item"; div.id = "toc-" + chapter.href.split('#')[0];
@@ -228,8 +241,8 @@
             });
         }
 
-        function handleNext() { rendition.next().then(() => { if (rendition.currentLocation().atEnd) showToast("已經是旅程的終點了"); }); }
-        function handlePrev() { rendition.prev(); }
+        function handleNext() { if(rendition) rendition.next().then(() => { if (rendition.currentLocation().atEnd) showToast("已經是旅程的終點了"); }); }
+        function handlePrev() { if(rendition) rendition.prev(); }
 
         function applyAllStyles() {
             const isDark = (prefs.bg !== '#ffffff' && prefs.bg !== '#f4ecd8');
@@ -247,16 +260,16 @@
             document.body.style.backgroundColor = prefs.bg;
             document.body.style.color = prefs.text;
             document.getElementById('shelf-overlay').style.backgroundColor = prefs.bg;
-            document.getElementById('shelf-overlay').style.color = prefs.text;
             document.getElementById('toc-panel').style.backgroundColor = prefs.bg;
-            document.getElementById('toc-panel').style.color = prefs.text;
-            document.querySelectorAll('.toc-header').forEach(el => el.style.backgroundColor = prefs.bg);
-
+            
             document.getElementById('v-fontSize').innerText = prefs.fontSize + "px";
             document.getElementById('v-lineHeight').innerText = prefs.lineHeight;
 
             if (rendition) {
-                rendition.themes.register("custom", { body: { "background-color": prefs.bg, "color": prefs.text }, p: { "line-height": prefs.lineHeight } });
+                rendition.themes.register("custom", { 
+                    body: { "background-color": prefs.bg, "color": prefs.text, "padding": "0 !important" }, 
+                    p: { "line-height": prefs.lineHeight } 
+                });
                 rendition.themes.select("custom");
                 rendition.themes.fontSize(prefs.fontSize + "px");
             }
@@ -279,10 +292,16 @@
             }
         }
 
-        function changeSize(d) { if ((d>0 && prefs.fontSize>=45) || (d<0 && prefs.fontSize<=12)) { showToast("已經到達極限了"); return; } prefs.fontSize+=d; savePrefs(); applyAllStyles(); }
+        // 3. 修改限制：文字 12-25，行高 1-3
+        function changeSize(d) { 
+            let n = prefs.fontSize + d;
+            if (n < 12 || n > 25) { showToast("已達字體限制範圍"); return; }
+            prefs.fontSize = n; savePrefs(); applyAllStyles(); 
+        }
         function changeLineHeight(d) { 
             let n = parseFloat((prefs.lineHeight+d).toFixed(1));
-            if (n>3.0 || n<1.0) { showToast("已經到達極限了"); return; } prefs.lineHeight=n; savePrefs(); applyAllStyles(); 
+            if (n < 1.0 || n > 3.0) { showToast("已達行高限制範圍"); return; }
+            prefs.lineHeight=n; savePrefs(); applyAllStyles(); 
         }
         function resetStyle(t) { prefs[t]=defaults[t]; savePrefs(); applyAllStyles(); showToast("已重設比例"); }
         function updateTheme(bg, text) { prefs.bg=bg; prefs.text=text; savePrefs(); applyAllStyles(); }
