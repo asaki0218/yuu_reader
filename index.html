@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - 完美補全終極修正版</title>
+    <title>極簡閱讀器 - V8.1 備份增強版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -74,13 +74,16 @@
         .toc-item { padding: 15px 20px; border-bottom: 1px solid var(--border-color); font-size: 14px; cursor: pointer; opacity: 0.7; }
         .toc-item.active { background: rgba(0, 122, 255, 0.1); color: var(--accent); font-weight: bold; opacity: 1; border-left: 4px solid var(--accent); }
 
-        /* 2. Toast 修正：置中且不換行 */
+        /* Toast 置中修正 */
         #toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; pointer-events: none; }
         .toast { background: rgba(0, 0, 0, 0.75); color: white; padding: 12px 24px; border-radius: 25px; font-size: 13px; white-space: nowrap; backdrop-filter: blur(10px); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards; }
         @keyframes toastIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
         @keyframes toastOut { to { opacity: 0; transform: scale(0.8); } }
 
         #global-mask { display: none; position: fixed; inset: 0; z-index: 3500; background: transparent; }
+
+        /* 備份面板樣式 */
+        #backup-menu { display: none; background: var(--ctrl-bg); padding: 15px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); }
     </style>
 </head>
 <body>
@@ -102,8 +105,21 @@
     <div id="shelf-overlay">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
             <h2 style="margin:0; font-size: 22px;">我的書架</h2>
-            <button class="top-btn" style="background:var(--accent); color:white; border:none;" onclick="document.getElementById('file-input').click()">+ 新增</button>
+            <div style="display:flex; gap:8px;">
+                <button class="top-btn" onclick="toggleBackupMenu(event)">💾 備份</button>
+                <button class="top-btn" style="background:var(--accent); color:white; border:none;" onclick="document.getElementById('file-input').click()">+ 新增</button>
+            </div>
         </div>
+
+        <div id="backup-menu" onclick="event.stopPropagation()">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn-base" style="padding: 12px 5px;" onclick="exportLibrary()">📤 導出書架</button>
+                <button class="btn-base" style="padding: 12px 5px;" onclick="document.getElementById('import-input').click()">📥 導入書架</button>
+            </div>
+            <input type="file" id="import-input" accept=".json" style="display:none" onchange="importLibrary(this)">
+            <p style="font-size: 10px; opacity: 0.5; margin-top: 10px; text-align: center; margin-bottom:0;">導出格式為 .json，包含書籍與進度</p>
+        </div>
+
         <input type="file" id="file-input" accept=".epub" style="display:none">
         <div id="shelf-list" class="shelf-grid"></div>
     </div>
@@ -157,13 +173,12 @@
         db.version(1).stores({ books: "id, name, data, cover, lastRead" });
 
         let book, rendition, currentId;
-        // 3. 基準設定
         const defaults = { bg: '#ffffff', text: '#333333', fontSize: 19, lineHeight: 1.6 };
         let prefs = JSON.parse(localStorage.getItem('yuu_v7_prefs')) || {...defaults};
 
         function showToast(msg) {
             const container = document.getElementById('toast-container');
-            container.innerHTML = ""; // 確保不堆疊
+            container.innerHTML = "";
             const el = document.createElement('div');
             el.className = 'toast'; el.innerText = msg;
             container.appendChild(el);
@@ -207,30 +222,34 @@
         };
 
         async function openBook(data, name, id, isFirstOpen) {
-            currentId = id;
-            // 1. 解決新書目錄問題：開啟新書前清空目錄列表
-            document.getElementById('toc-list').innerHTML = "";
-            
-            await db.books.update(id, { lastRead: Date.now() });
-            document.getElementById('shelf-overlay').style.display = 'none';
-            document.getElementById('book-title-row').innerText = name;
-            if (book) book.destroy();
-            
-            book = ePub(data);
-            rendition = book.renderTo("viewer", { width: "100%", height: "auto", flow: "scrolled" });
-            
-            const savedPos = localStorage.getItem("pos_" + id);
-            await rendition.display(savedPos || 0);
-            
-            if (isFirstOpen && savedPos) showToast("為你翻回上次停下的地方");
-            applyAllStyles();
-            document.getElementById('nav-area').style.display = 'flex';
+             currentId = id;
+             document.getElementById('toc-list').innerHTML = "";
+             await db.books.update(id, { lastRead: Date.now() });
+             document.getElementById('shelf-overlay').style.display = 'none';
+             document.getElementById('book-title-row').innerText = name;
+             if (book) book.destroy();
+    
+                 book = ePub(data);
+
+    rendition = book.renderTo("viewer", { 
+        width: "100%", 
+        height: "auto", 
+        flow: "scrolled",
+        manager: "default" // 核心改動：直接渲染模式
+    });
+
+    const savedPos = localStorage.getItem("pos_" + id);
+    await rendition.display(savedPos || 0);
+    
+    if (isFirstOpen && savedPos) showToast("為你翻回上次停下的地方");
+    applyAllStyles();
+    document.getElementById('nav-area').style.display = 'flex';
             
             rendition.on("relocated", loc => { if(loc.start) localStorage.setItem("pos_" + currentId, loc.start.cfi); });
             
             book.loaded.navigation.then(nav => {
                 const list = document.getElementById('toc-list');
-                list.innerHTML = ""; // 雙重確保清空
+                list.innerHTML = "";
                 nav.forEach(chapter => {
                     const div = document.createElement("div");
                     div.className = "toc-item"; div.id = "toc-" + chapter.href.split('#')[0];
@@ -292,7 +311,6 @@
             }
         }
 
-        // 3. 修改限制：文字 12-25，行高 1-3
         function changeSize(d) { 
             let n = prefs.fontSize + d;
             if (n < 12 || n > 25) { showToast("已達字體限制範圍"); return; }
@@ -318,10 +336,84 @@
             document.getElementById('settings-panel').style.display = 'none';
             document.getElementById('toc-panel').style.display = 'none';
             document.getElementById('global-mask').style.display = 'none';
+            document.getElementById('backup-menu').style.display = 'none';
         }
 
         function showShelf() { closeAllPanels(); document.getElementById('shelf-overlay').style.display = 'block'; loadShelf(); }
         async function deleteBook(e, id) { e.stopPropagation(); if(confirm("確定刪除？")) { await db.books.delete(id); showToast("已將空間騰出"); loadShelf(); } }
+
+        // --- 備份功能區塊 ---
+        function toggleBackupMenu(e) {
+            e.stopPropagation();
+            const m = document.getElementById('backup-menu');
+            const isShowing = m.style.display === 'block';
+            closeAllPanels();
+            if (!isShowing) {
+                m.style.display = 'block';
+                document.getElementById('global-mask').style.display = 'block';
+            }
+        }
+
+        async function exportLibrary() {
+            showToast("正在準備備份數據...");
+            try {
+                const books = await db.books.toArray();
+                if (books.length === 0) { showToast("書架空空如也"); return; }
+                const exportData = await Promise.all(books.map(async b => ({
+                    ...b,
+                    data: await bufferToBase64(b.data),
+                    cover: b.cover ? await bufferToBase64(await b.cover.arrayBuffer()) : null
+                })));
+                const blob = new Blob([JSON.stringify(exportData)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `YuuReader_Backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast("備份完成！");
+            } catch (e) { showToast("導出失敗"); }
+        }
+
+        async function importLibrary(input) {
+            const file = input.files[0]; if (!file) return;
+            showToast("正在導入...");
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedBooks = JSON.parse(e.target.result);
+                    let count = 0;
+                    for (const b of importedBooks) {
+                        if (!(await db.books.get(b.id))) {
+                            await db.books.add({
+                                ...b,
+                                data: base64ToBuffer(b.data),
+                                cover: b.cover ? new Blob([base64ToBuffer(b.cover)]) : null
+                            });
+                            count++;
+                        }
+                    }
+                    showToast(`成功導入 ${count} 本書`);
+                    loadShelf(); closeAllPanels();
+                } catch (err) { showToast("檔案損壞"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function bufferToBase64(buffer) {
+            return new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = e => r(e.target.result);
+                reader.readAsDataURL(new Blob([buffer]));
+            });
+        }
+
+        function base64ToBuffer(base64) {
+            const bin = atob(base64.split(',')[1]);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes.buffer;
+        }
 
         window.onload = () => { applyAllStyles(); loadShelf(); };
     </script>
