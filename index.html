@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V8.2 質感正式版</title>
+    <title>極簡閱讀器 - V8.3 正式發佈版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -19,11 +19,8 @@
             margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); 
             font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; 
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-            transition: background-color 0.5s ease, color 0.5s ease;
-            /* 修正：將紋理設在最底層並使用 repeat 模式 */
-            background-image: url('https://www.transparenttextures.com/patterns/asfalt-dark.png');
-            background-attachment: fixed;
-            background-repeat: repeat;
+            /* 恢復 V8.2 的純色背景與平滑過渡 */
+            transition: background-color 1.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease;
         }
         #top-container { 
             position: fixed; top: 0; left: 0; width: 100%; z-index: 3000; 
@@ -52,8 +49,7 @@
         .delete-btn { position: absolute; top: -5px; right: -5px; background: #ff3b30; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; z-index: 30; cursor: pointer; }
 
         #main-scroll-area { flex: 1; margin-top: 68px; overflow-y: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
-        /* 修正：viewer 必須透明才能透出底下的 body 紋理 */
-        #viewer { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 15px; box-sizing: border-box; background-color: transparent !important; }
+        #viewer { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 15px; box-sizing: border-box; }
 
         .nav-controls { display: none; justify-content: center; gap: 10px; padding: 40px 15px 120px; max-width: 500px; margin: 0 auto; }
         .btn-base { border: 1px solid var(--border-color); border-radius: 14px; font-size: 13px; padding: 14px 5px; cursor: pointer; color: var(--header-text); background: var(--glass-bg); flex: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -256,41 +252,47 @@
         }
         function handlePrev() { if(rendition) rendition.prev(); }
 
+        // V8.3 核心功能：智能護眼過渡邏輯
+        function getSmartBgColor(baseBg) {
+            const hour = new Date().getHours();
+            // 如果是純白色模式，且在晚上 18:00 到 凌晨 06:00 之間
+            if (baseBg.toLowerCase() === '#ffffff' && (hour >= 18 || hour < 6)) {
+                return '#fcf5e5'; // 自動切換為平滑的暖色調
+            }
+            return baseBg;
+        }
+
         function applyAllStyles() {
-            const isDark = (prefs.bg !== '#ffffff' && prefs.bg !== '#f4ecd8');
+            // 應用智能護眼顏色
+            const finalBg = getSmartBgColor(prefs.bg);
+            
+            const isDark = (finalBg !== '#ffffff' && finalBg !== '#f4ecd8' && finalBg !== '#fcf5e5');
             const glass = isDark ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.8)';
             const border = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)';
             const ctrl = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
             
-            document.documentElement.style.setProperty('--bg-color', prefs.bg);
+            document.documentElement.style.setProperty('--bg-color', finalBg);
             document.documentElement.style.setProperty('--text-color', prefs.text);
             document.documentElement.style.setProperty('--glass-bg', glass);
             document.documentElement.style.setProperty('--border-color', border);
             document.documentElement.style.setProperty('--ctrl-bg', ctrl);
             document.documentElement.style.setProperty('--header-text', prefs.text);
 
-            document.body.style.backgroundColor = prefs.bg;
+            document.body.style.backgroundColor = finalBg;
             document.body.style.color = prefs.text;
-            document.getElementById('shelf-overlay').style.backgroundColor = prefs.bg;
-            document.getElementById('toc-panel').style.backgroundColor = prefs.bg;
+            document.getElementById('shelf-overlay').style.backgroundColor = finalBg;
+            document.getElementById('toc-panel').style.backgroundColor = finalBg;
             document.getElementById('v-fontSize').innerText = prefs.fontSize + "px";
             document.getElementById('v-lineHeight').innerText = prefs.lineHeight;
 
             if (rendition) {
                 rendition.themes.register("custom", { 
-                    body: { 
-                        "background-color": "transparent !important", // 強制內容背景透明
-                        "color": prefs.text, 
-                        "padding": "0 !important",
-                        "margin": "0 !important"
-                    }, 
+                    body: { "background-color": finalBg + " !important", "color": prefs.text, "padding": "0 !important" }, 
                     p: { "line-height": prefs.lineHeight } 
                 });
                 rendition.themes.select("custom");
                 rendition.themes.fontSize(prefs.fontSize + "px");
             }
-            // 同步將容器設為透明，確保不遮擋 body 的紋理
-            document.getElementById('viewer').style.backgroundColor = 'transparent';
         }
 
         function openTOC() {
