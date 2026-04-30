@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V8.3.2 正式發佈版</title>
+    <title>極簡閱讀器 - V8.3.3 正式發佈版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -19,7 +19,7 @@
             margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); 
             font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; 
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-            transition: background-color 1.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease;
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease;
         }
         
         #top-container { 
@@ -263,12 +263,8 @@
                 });
             }
         }
-        function handlePrev() { if(rendition) rendition.prev(); }
+        function handlePrev() { if(rendition) rendition.prev(); 
 
-        function getSmartBgColor(baseBg) {
-            const hour = new Date().getHours();
-            if (baseBg.toLowerCase() === '#ffffff' && (hour >= 18 || hour < 6)) { return '#fcf5e5'; }
-            return baseBg;
         }
 
         function hexToRgba(hex, alpha) {
@@ -279,7 +275,7 @@
         }
 
         function applyAllStyles() {
-            const finalBg = getSmartBgColor(prefs.bg);
+            const finalBg = prefs.bg;
             const glass = hexToRgba(finalBg, 0.65);
             
             const isDark = (finalBg !== '#ffffff' && finalBg !== '#f4ecd8' && finalBg !== '#fcf5e5');
