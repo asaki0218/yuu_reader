@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V8.3.3 正式發佈版</title>
+    <title>極簡閱讀器 - V8.3.4 正式發佈版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -136,7 +136,7 @@
         <div id="viewer"></div>
         <div id="nav-area" class="nav-controls">
             <button class="btn-base" onclick="handlePrev()">上一頁</button>
-            <button class="btn-base" onclick="showShelf()">首頁</button>
+            <button class="btn-base" onclick="goToCover()">首頁</button>
             <button class="btn-base" onclick="handleNext()">下一頁</button>
         </div>
     </div>
@@ -266,6 +266,18 @@
         function handlePrev() { if(rendition) rendition.prev(); 
 
         }
+
+        function goToCover() {
+    if (rendition && book) {
+        // 獲取圖書目錄的第一項
+        book.loaded.navigation.then(nav => {
+            // 嘗試跳轉到 spine 的第一個部分（通常是封面或扉頁）
+            const firstChapter = book.spine.get(0).href;
+            rendition.display(firstChapter);
+            showToast("已回到首頁");
+        });
+    }
+}
 
         function hexToRgba(hex, alpha) {
             let r = parseInt(hex.slice(1, 3), 16);
