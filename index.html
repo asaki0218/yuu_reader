@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V8.3.4 正式發佈版</title>
+    <title>極簡閱讀器 - V8.3.5 正式發佈版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -34,7 +34,6 @@
 
         #header-fixed { height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
         #book-title-row { width: 100%; text-align: center; font-size: 11px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; box-sizing: border-box; color: var(--header-text); }
-        .notranslate { translate: no !important; }
 
         .top-btn, .btn-base { 
             background: transparent; border: 1px solid var(--border-color); padding: 5px 10px; border-radius: 8px; font-size: 13px; color: var(--header-text); cursor: pointer;
@@ -134,10 +133,11 @@
 
     <div id="main-scroll-area">
         <div id="viewer"></div>
-        <div id="nav-area" class="nav-controls">
+        <div id="nav-area" class="nav-controls notranslate" translate="no">
             <button class="btn-base" onclick="handlePrev()">上一頁</button>
             <button class="btn-base" onclick="goToCover()">首頁</button>
             <button class="btn-base" onclick="handleNext()">下一頁</button>
+            
         </div>
     </div>
 
@@ -181,6 +181,10 @@
         function showToast(msg) {
             const container = document.getElementById('toast-container');
             const el = document.createElement('div');
+            el.className = 'toast notranslate'; 
+            el.setAttribute('translate', 'no');
+            el.innerText = msg;
+            container.appendChild(el);
             el.className = 'toast'; el.innerText = msg;
             container.appendChild(el);
             if (container.childNodes.length > 3) container.removeChild(container.firstChild);
@@ -301,10 +305,6 @@
             document.documentElement.style.setProperty('--ctrl-bg', ctrl);
             document.documentElement.style.setProperty('--header-text', prefs.text);
 
-            document.body.style.backgroundColor = finalBg;
-            document.body.style.color = prefs.text;
-            document.getElementById('shelf-overlay').style.backgroundColor = finalBg;
-            document.getElementById('toc-panel').style.backgroundColor = finalBg;
             document.getElementById('v-fontSize').innerText = prefs.fontSize + "px";
             document.getElementById('v-lineHeight').innerText = prefs.lineHeight;
 
