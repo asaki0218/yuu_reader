@@ -382,7 +382,7 @@
                 for (const file of files) {
             
                 const exists = await db.books.where("name").equals(file.name).first();
-                if (exists) continue;
+                if (exists) { showToast("這本書已經在書架上等你了喔"); return; }
 
                 const buffer = await file.arrayBuffer();       
             
