@@ -424,7 +424,21 @@
 
             book = ePub(data);
 
-            rendition = book.renderTo("viewer", { width: "100%", height: "auto", flow: "scrolled", manager: "continuous" });
+            // 全語系通用補丁：動態偵測原書語言，完美適配沉浸式翻譯
+            rendition.hooks.content.register(function(contents) {
+            const doc = contents.document;
+    
+    // 🔍 自動抓取這本電子書官方設定的語言（如果抓不到，預設為自動偵測 "auto"）
+            const bookLang = (book && book.package && book.package.metadata && book.package.metadata.language) || "auto";
+    
+    // 動態設定沙盒內的語言，這樣沉浸式翻譯不論遇到什麼語言都能精準識別
+            doc.documentElement.setAttribute("lang", bookLang); 
+    
+    // 觸發沉浸式翻譯的偵測
+            if (window.immersiveTranslate) {
+        window.immersiveTranslate.setupPage(doc);
+    }
+});
 
             const savedPos = localStorage.getItem("pos_" + id);
 
