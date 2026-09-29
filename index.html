@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V8.7 優化測試版</title>
+    <title>極簡閱讀器 - V9.0 優化翻譯版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -242,6 +242,17 @@
             rendition.hooks.content.register(function(contents) {
                 const doc = contents.document;
                 let bookLang = "auto";
+
+                const style = doc.createElement('style');
+                style.innerHTML = `
+                p, div { 
+                    unicode-bidi: isolate; 
+                    word-break: break-word !important; 
+                }
+           span[data-epubtype] { display: inline !important; }
+            `;
+             doc.head.appendChild(style);
+
                 if (book && book.ready) {
                     book.ready.then(() => {
                         if (book.package && book.package.metadata) {
