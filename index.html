@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V9.0.1 優化翻譯版</title>
+    <title>極簡閱讀器 - V9.0.2 優化翻譯版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -120,9 +120,9 @@
         <div id="shelf-list" class="shelf-grid"></div>
     </div>
 
-    <div id="toc-panel">
+    <div id="toc-panel" class="notranslate" translate="no">
         <div class="toc-header">目錄導覽 <span style="font-size:12px; color:var(--accent); cursor:pointer" onclick="closeAllPanels()">關閉</span></div>
-        <div id="toc-list" class="notranslate" translate="no"></div>
+        <div id="toc-list"></div>
     </div>
 
     <div id="main-scroll-area">
@@ -135,33 +135,33 @@
     </div>
 
     <div id="settings-panel" class="notranslate" translate="no">
-        <div class="setting-label-row"><span style="font-size: 11px; opacity: 0.7;">主題配色</span></div>
-        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-bottom:24px;">
-            <div class="theme-dot" id="dot-#ffffff" style="background:#ffffff;" onclick="updateTheme('#ffffff','#333333')"></div>
-            <div class="theme-dot" id="dot-#f4ecd8" style="background:#f4ecd8;" onclick="updateTheme('#f4ecd8','#5b4636')"></div>
-            <div class="theme-dot" id="dot-#2d3e30" style="background:#2d3e30;" onclick="updateTheme('#2d3e30','#ffffff')"></div>
-            <div class="theme-dot" id="dot-#1e2a3a" style="background:#1e2a3a;" onclick="updateTheme('#1e2a3a','#e0e0e0')"></div>
-            <div class="theme-dot" id="dot-#1a1a1a" style="background:#1a1a1a;" onclick="updateTheme('#1a1a1a','#ffffff')"></div>
-        </div>
-        <div class="setting-label-row">
-            <span style="font-size: 11px; opacity: 0.7;">文字大小</span>
-            <svg class="reset-icon-svg" onclick="resetStyle('fontSize')" viewBox="0 0 24 24"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
-        </div>
-        <div class="ctrl-row-new">
-            <button class="ctrl-btn" onclick="changeSize(-1)">-</button>
-            <span class="ctrl-val notranslate" translate="no" id="v-fontSize">19px</span>
-            <button class="ctrl-btn" onclick="changeSize(1)">+</button>
-        </div>
-        <div class="setting-label-row">
-            <span style="font-size: 11px; opacity: 0.7;">行間距</span>
-            <svg class="reset-icon-svg" onclick="resetStyle('lineHeight')" viewBox="0 0 24 24"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
-        </div>
-        <div class="ctrl-row-new">
-            <button class="ctrl-btn" onclick="changeLineHeight(-0.1)">-</button>
-            <span class="ctrl-val notranslate" translate="no" id="v-lineHeight">1.6</span>
-            <button class="ctrl-btn" onclick="changeLineHeight(0.1)">+</button>
-        </div>
+    <div class="setting-label-row"><span style="font-size: 11px; opacity: 0.7;">主題配色</span></div>
+    <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-bottom:24px;">
+        <div class="theme-dot" id="dot-ffffff" style="background:#ffffff;" onclick="updateTheme('#ffffff','#333333')"></div>
+        <div class="theme-dot" id="dot-f4ecd8" style="background:#f4ecd8;" onclick="updateTheme('#f4ecd8','#5b4636')"></div>
+        <div class="theme-dot" id="dot-2d3e30" style="background:#2d3e30;" onclick="updateTheme('#2d3e30','#ffffff')"></div>
+        <div class="theme-dot" id="dot-1e2a3a" style="background:#1e2a3a;" onclick="updateTheme('#1e2a3a','#e0e0e0')"></div>
+        <div class="theme-dot" id="dot-1a1a1a" style="background:#1a1a1a;" onclick="updateTheme('#1a1a1a','#ffffff')"></div>
     </div>
+    <div class="setting-label-row">
+        <span style="font-size: 11px; opacity: 0.7;">文字大小</span>
+        <svg class="reset-icon-svg" onclick="resetStyle('fontSize')" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
+    </div>
+    <div class="ctrl-row-new">
+        <button class="ctrl-btn" onclick="changeSize(-1)">-</button>
+        <span class="ctrl-val" id="v-fontSize">19px</span>
+        <button class="ctrl-btn" onclick="changeSize(1)">+</button>
+    </div>
+    <div class="setting-label-row">
+        <span style="font-size: 11px; opacity: 0.7;">行間距</span>
+        <svg class="reset-icon-svg" onclick="resetStyle('lineHeight')" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
+    </div>
+    <div class="ctrl-row-new">
+        <button class="ctrl-btn" onclick="changeLineHeight(-0.1)">-</button>
+        <span class="ctrl-val" id="v-lineHeight">1.6</span>
+        <button class="ctrl-btn" onclick="changeLineHeight(0.1)">+</button>
+    </div>
+</div>
 
     <script>
         const db = new Dexie("YuuReader_Android_Final");
