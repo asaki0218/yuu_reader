@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極簡閱讀器 - V9.0 優化翻譯版</title>
+    <title>極簡閱讀器 - V9.0.1 優化翻譯版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
@@ -89,16 +89,16 @@
     <div id="global-mask" onclick="closeAllPanels()"></div>
     <div id="toast-container"></div>
 
-    <div id="top-container">
-        <div id="header-fixed">
-            <button class="top-btn" onclick="openTOC()">📖 目錄</button>
-            <div style="display:flex; gap:8px;">
-                <button class="top-btn" onclick="showShelf()">📚 書架</button>
-                <button class="top-btn" onclick="toggleSettings()">⚙️</button>
-            </div>
+<div id="top-container" class="notranslate" translate="no">
+    <div id="header-fixed">
+        <button class="top-btn" onclick="openTOC()">📖 目錄</button>
+        <div style="display:flex; gap:8px;">
+            <button class="top-btn" onclick="showShelf()">📚 書架</button>
+            <button class="top-btn" onclick="toggleSettings()">⚙️</button>
         </div>
-        <div id="book-title-row" class="notranslate" translate="no"></div>
     </div>
+    <div id="book-title-row"></div>
+</div>
 
     <div id="shelf-overlay">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
